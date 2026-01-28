@@ -10,9 +10,6 @@ class AttendanceScreen extends GetView<AttendanceController> {
 
   @override
   Widget build(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final TextEditingController inputName = TextEditingController();
-
     final Set<Circle> circles = {
       Circle(
         strokeWidth: 2,
@@ -67,7 +64,7 @@ class AttendanceScreen extends GetView<AttendanceController> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Form(
-                key: formKey,
+                key: controller.formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -77,7 +74,7 @@ class AttendanceScreen extends GetView<AttendanceController> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      controller: inputName,
+                      controller: controller.nameController,
                       keyboardType: TextInputType.name,
                       textInputAction: TextInputAction.done,
                       decoration: const InputDecoration(
@@ -95,12 +92,14 @@ class AttendanceScreen extends GetView<AttendanceController> {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () async {
-                        if (formKey.currentState!.validate()) {
+                        if (controller.formKey.currentState!.validate()) {
                           // Hide keyboard
                           FocusScope.of(context).unfocus();
 
-                          final success = await controller.submitAttendance(inputName.text.trim());
+                          final success = await controller.submitAttendance(controller.nameController.text.trim());
                           if (success) {
+                            // Clear input on success
+                            controller.nameController.clear();
                             Get.back();
                           }
                         }

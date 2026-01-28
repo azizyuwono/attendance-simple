@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -21,6 +22,9 @@ class AttendanceController extends GetxController {
   final RxList<Attendance> listAttendances = <Attendance>[].obs;
   final Rx<String?> errorMessage = Rx<String?>(null);
 
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  final TextEditingController nameController = TextEditingController();
+
   Position? currentPosition;
 
   final Rx<Position?> currentPositionRx = Rx<Position?>(null);
@@ -30,6 +34,12 @@ class AttendanceController extends GetxController {
     super.onInit();
     // Initial fetch
     getListAttendances();
+  }
+
+  @override
+  void onClose() {
+    nameController.dispose();
+    super.onClose();
   }
 
   Future<void> getCurrentLocation() async {
