@@ -11,6 +11,12 @@ A robust, location-based attendance tracking application built with **Flutter**.
 *   **Offline Support**: Data is persisted locally using SQLite (`sqflite`).
 *   **Modern UI**: Designed with Material 3 principles for a clean and accessible user experience.
 
+## 📥 Download
+
+**Android APK**: [Download Android APK](releases/app-release.apk)
+
+> **Note for iOS**: Building the iOS application requires macOS and Xcode. Please clone the repository and run `flutter build ios` on a Mac to generate the app.
+
 ## 🛠️ Tech Stack & Architecture
 
 *   **Framework**: Flutter (Dart)
