@@ -1,105 +1,98 @@
 import 'dart:developer';
 
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../constants/app_constants.dart';
 import '../models/attendance.dart';
 import '../repository/attendance_repository.dart';
+import '../services/location_service.dart';
+import '../services/notification_service.dart';
 
 class AttendanceController extends GetxController {
-  RxBool isLoading = false.obs;
-  RxBool isError = false.obs;
-  RxList<Attendance> listAttendances = <Attendance>[].obs;
+  final LocationService _locationService;
+  final AttendanceRepository _attendanceRepository;
+  final NotificationService _notificationService;
 
+  AttendanceController(this._locationService, this._attendanceRepository, this._notificationService);
 
-  final center = const LatLng(-8.1735199, 113.6976335);
+  final RxBool isLoading = false.obs;
+  final RxBool isError = false.obs;
+  final RxList<Attendance> listAttendances = <Attendance>[].obs;
+  final Rx<String?> errorMessage = Rx<String?>(null);
 
   Position? currentPosition;
 
-  Future getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  final Rx<Position?> currentPositionRx = Rx<Position?>(null);
 
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Location services are not enabled don't continue
-      // accessing the position and request users of the
-      // App to enable the location services.
-      return Future.error('Location services are disabled.');
-    }
+  @override
+  void onInit() {
+    super.onInit();
+    // Initial fetch
+    getListAttendances();
+  }
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Permissions are denied, next time you could try
-        // requesting permissions again (this is also where
-        // Android's shouldShowRequestPermissionRationale
-        // returned true. According to Android guidelines
-        // your App should show an explanatory UI now.
-        return Future.error('Location permissions are denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      // Permissions are denied forever, handle appropriately.
-      return Future.error(
-          'Location permissions are permanently denied, we cannot request permissions.');
-    }
-
-    // When we reach here, permissions are granted and we can
-    // continue accessing the position of the device.
+  Future<void> getCurrentLocation() async {
     try {
-      currentPosition = await Geolocator.getCurrentPosition();
+      currentPosition = await _locationService.getCurrentPosition();
+      currentPositionRx.value = currentPosition;
     } catch (e) {
-      return Future.error('Location service are disbled.');
+      errorMessage.value = e.toString();
+      _notificationService.showSnackbar('Location Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
     }
   }
 
-  Future getListAttendances() async {
+  Future<void> getListAttendances() async {
     isLoading.value = true;
+    errorMessage.value = null;
 
     try {
-      final response = await AttendanceRepository.readAllAttendances();
-
-      listAttendances.clear();
-      listAttendances.addAll(response);
-
+      final response = await _attendanceRepository.readAllAttendances();
+      listAttendances.assignAll(response);
       isError.value = false;
     } catch (e) {
       isError.value = true;
+      errorMessage.value = e.toString();
       log('error read list: ${e.toString()}');
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future submitAttendance(String name) async {
+  Future<bool> submitAttendance(String name) async {
+    // Refresh location before submitting to ensure accuracy
+    try {
+      await getCurrentLocation();
+    } catch (e) {
+      _notificationService.showSnackbar('Error', 'Could not get current location: $e', snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+
     if (currentPosition == null) {
-      Fluttertoast.showToast(msg: 'Location not detected');
-      return;
+      _notificationService.showSnackbar('Error', 'Location not detected. Please try again.', snackPosition: SnackPosition.BOTTOM);
+      return false;
     }
 
     try {
-      final distance = Geolocator.distanceBetween(
-        center.latitude,
-        center.longitude,
+      final distance = _locationService.calculateDistance(
+        AppConstants.centerLatitude,
+        AppConstants.centerLongitude,
         currentPosition!.latitude,
         currentPosition!.longitude,
       );
 
       log('distance from center: $distance');
 
-      if (distance > 50) {
-        Fluttertoast.showToast(
-            msg: 'Attendance must be less or 50 meters from center point');
-        return;
+      if (distance > AppConstants.maxAttendanceDistanceInMeters) {
+         _notificationService.showSnackbar(
+           'Out of Range',
+           'You are ${distance.toStringAsFixed(1)}m away. Max allowed is ${AppConstants.maxAttendanceDistanceInMeters}m.',
+           snackPosition: SnackPosition.BOTTOM
+         );
+        return false;
       }
 
-      await AttendanceRepository.create(
+      await _attendanceRepository.create(
         Attendance(
           name: name,
           latitude: currentPosition!.latitude,
@@ -108,13 +101,15 @@ class AttendanceController extends GetxController {
         ),
       );
 
-      getListAttendances();
+      // Refresh list
+      await getListAttendances();
 
-      Fluttertoast.showToast(msg: 'Success submit attendance');
-      Get.back();
+      _notificationService.showSnackbar('Success', 'Attendance submitted successfully', snackPosition: SnackPosition.BOTTOM);
+      return true;
     } catch (e) {
       log('error submit: ${e.toString()}');
-      Fluttertoast.showToast(msg: e.toString());
+      _notificationService.showSnackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      return false;
     }
   }
 }

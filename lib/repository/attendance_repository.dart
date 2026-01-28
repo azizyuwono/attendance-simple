@@ -1,19 +1,24 @@
+import '../constants/app_constants.dart';
 import '../models/attendance.dart';
 import '../services/database_service.dart';
 
 class AttendanceRepository {
-  static Future<Attendance> create(Attendance attendance) async {
-    final db = await DatabaseService.instance.database;
+  final DatabaseService _databaseService;
 
-    final id = await db.insert(tableAttendances, attendance.toJson());
+  AttendanceRepository(this._databaseService);
+
+  Future<Attendance> create(Attendance attendance) async {
+    final db = _databaseService.database;
+
+    final id = await db.insert(AppConstants.tableAttendances, attendance.toJson());
     return attendance.copy(id: id);
   }
 
-  static Future<Attendance> readAttendance(int id) async {
-    final db = await DatabaseService.instance.database;
+  Future<Attendance> readAttendance(int id) async {
+    final db = _databaseService.database;
 
     final maps = await db.query(
-      tableAttendances,
+      AppConstants.tableAttendances,
       columns: AttendanceFields.values,
       where: '${AttendanceFields.id} = ?',
       whereArgs: [id],
@@ -26,12 +31,12 @@ class AttendanceRepository {
     }
   }
 
-  static Future<List<Attendance>> readAllAttendances() async {
-    final db = await DatabaseService.instance.database;
+  Future<List<Attendance>> readAllAttendances() async {
+    final db = _databaseService.database;
 
-    const orderBy = '${AttendanceFields.createdAt} ASC';
+    const orderBy = '${AttendanceFields.createdAt} DESC'; // Changed to DESC to show newest first
 
-    final result = await db.query(tableAttendances, orderBy: orderBy);
+    final result = await db.query(AppConstants.tableAttendances, orderBy: orderBy);
 
     return result.map((json) => Attendance.fromJson(json)).toList();
   }

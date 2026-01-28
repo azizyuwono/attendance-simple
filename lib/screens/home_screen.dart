@@ -2,55 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
+import '../constants/app_constants.dart';
 import '../controllers/attendance_controller.dart';
 import '../routes/route_names.dart';
-import '../services/database_service.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final _controller = Get.put(AttendanceController());
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.getCurrentLocation();
-    _controller.getListAttendances();
-  }
-
-  @override
-  void dispose() {
-    DatabaseService.instance.close();
-    super.dispose();
-  }
+class HomeScreen extends GetView<AttendanceController> {
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Simple Mobile Attendance')),
+      appBar: AppBar(title: const Text(AppConstants.appName)),
       body: Obx(() {
-        if (_controller.isLoading.value) {
+        if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (_controller.isError.value) {
+        if (controller.isError.value) {
           return Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Error fetching data. Please try again',
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  controller.errorMessage.value ?? 'Error fetching data',
                   textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => _controller.getListAttendances(),
+                  onPressed: () => controller.getListAttendances(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Try again'),
                 )
@@ -59,19 +41,20 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
-        if (_controller.listAttendances.isEmpty) {
+        if (controller.listAttendances.isEmpty) {
           return Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const Icon(Icons.history, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
                 const Text(
-                  'No attendances saved yet.\nClick add to save new attendances',
+                  'No attendances recorded yet.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
-                  onPressed: () => _controller.getListAttendances(),
+                  onPressed: () => controller.getListAttendances(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Refresh'),
                 )
@@ -81,24 +64,37 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         return ListView.builder(
-          itemCount: _controller.listAttendances.length,
+          padding: const EdgeInsets.all(8),
+          itemCount: controller.listAttendances.length,
           itemBuilder: (context, index) {
-            final attendance = _controller.listAttendances[index];
+            final attendance = controller.listAttendances[index];
 
-            return ListTile(
-              onTap: () => Get.toNamed(RouteNames.detailAttendanceScreen,
-                  arguments: attendance),
-              title: Text(attendance.name),
-              subtitle: Text(
-                  DateFormat('dd MMM y H:mm:ss').format(attendance.createdAt)),
-              trailing: const Text('Attended'),
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              child: ListTile(
+                onTap: () => Get.toNamed(RouteNames.detailAttendanceScreen,
+                    arguments: attendance),
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: Text(
+                    attendance.name.isNotEmpty ? attendance.name[0].toUpperCase() : '?',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  ),
+                ),
+                title: Text(attendance.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                    DateFormat('EEE, dd MMM yyyy, HH:mm').format(attendance.createdAt)),
+                trailing: const Icon(Icons.chevron_right),
+              ),
             );
           },
         );
       }),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(RouteNames.attendanceScreen),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Check In'),
       ),
     );
   }
