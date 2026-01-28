@@ -4,146 +4,147 @@ import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../constants/app_constants.dart';
 import '../models/attendance.dart';
 
-class DetailAttendanceScreen extends StatefulWidget {
-  const DetailAttendanceScreen({Key? key}) : super(key: key);
-
-  @override
-  State<DetailAttendanceScreen> createState() => _DetailAttendanceScreenState();
-}
-
-class _DetailAttendanceScreenState extends State<DetailAttendanceScreen> {
-  Attendance detail = Get.arguments;
-  late GoogleMapController mapController;
-
-
-  final LatLng _center = const LatLng(-8.1735199, 113.6976335);
-
-  final Set<Circle> _circles = {
-    Circle(
-      strokeWidth: 2,
-      fillColor: Colors.greenAccent.withOpacity(0.3),
-      strokeColor: Colors.greenAccent,
-      circleId: const CircleId('center'),
-      center: const LatLng(-8.1735199, 113.6976335),
-      radius: 50,
-    )
-  };
-
-  final Set<Marker> _markers = {
-    const Marker(
-      markerId: MarkerId('center'),
-      position: LatLng(-8.1735199, 113.6976335),
-      infoWindow: InfoWindow(
-        title: 'Attendance point',
-        snippet: 'Matahari Johar Plaza',
-      ),
-    ),
-  };
-
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
-
-    setState(() {
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('detail'),
-          position: LatLng(detail.latitude, detail.longitude),
-          infoWindow: InfoWindow(
-            title: 'Attendance location - ${detail.name}',
-            snippet:
-                'Attended at: ${DateFormat('dd MMM y H:mm:ss').format(detail.createdAt)}',
-          ),
-        ),
-      );
-    });
-  }
-
-  double calculateDistance() => Geolocator.distanceBetween(
-      _center.latitude, _center.longitude, detail.latitude, detail.longitude);
+class DetailAttendanceScreen extends StatelessWidget {
+  const DetailAttendanceScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final Attendance detail = Get.arguments;
+
+    final Set<Circle> circles = {
+      Circle(
+        strokeWidth: 2,
+        fillColor: Colors.greenAccent.withValues(alpha: 0.3),
+        strokeColor: Colors.greenAccent,
+        circleId: const CircleId('center'),
+        center: AppConstants.centerLocation,
+        radius: AppConstants.maxAttendanceDistanceInMeters,
+      )
+    };
+
+    final Set<Marker> markers = {
+      const Marker(
+        markerId: MarkerId('center'),
+        position: AppConstants.centerLocation,
+        infoWindow: InfoWindow(
+          title: 'Attendance point',
+          snippet: 'Main Office',
+        ),
+      ),
+      Marker(
+        markerId: const MarkerId('detail'),
+        position: LatLng(detail.latitude, detail.longitude),
+        infoWindow: InfoWindow(
+          title: 'Attendance location',
+          snippet: DateFormat('dd MMM y H:mm').format(detail.createdAt),
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      ),
+    };
+
+    double calculateDistance() => Geolocator.distanceBetween(
+        AppConstants.centerLatitude,
+        AppConstants.centerLongitude,
+        detail.latitude,
+        detail.longitude);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Detail Attendance')),
+      appBar: AppBar(title: const Text('Attendance Details')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
+            flex: 2,
             child: GoogleMap(
               mapToolbarEnabled: false,
               zoomControlsEnabled: false,
-              onMapCreated: _onMapCreated,
-              initialCameraPosition: CameraPosition(
-                target: _center,
+              initialCameraPosition: const CameraPosition(
+                target: AppConstants.centerLocation,
                 zoom: 18,
               ),
-              circles: _circles,
-              markers: _markers,
+              circles: circles,
+              markers: markers,
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Details',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  detail.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(DateFormat('dd MMM y H:mm:ss').format(detail.createdAt)),
-                const SizedBox(height: 8),
-                Row(
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  )
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(
-                      width: 120,
-                      child: Text(
-                        'Latitude',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          child: Text(
+                            detail.name.isNotEmpty ? detail.name[0].toUpperCase() : '?',
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              detail.name,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            Text(
+                              DateFormat('EEEE, dd MMM yyyy, HH:mm').format(detail.createdAt),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    Text(detail.latitude.toString()),
+                    const Divider(height: 32),
+                    _buildInfoRow(context, 'Distance', '${calculateDistance().toStringAsFixed(1)} meters from Center'),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(context, 'Coordinates', '${detail.latitude.toStringAsFixed(6)}, ${detail.longitude.toStringAsFixed(6)}'),
                   ],
                 ),
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 120,
-                      child: Text(
-                        'Longitude',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    Text(detail.longitude.toString()),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Text(
-                      '${calculateDistance().toStringAsFixed(0)} meters ',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const Text('from attendance point'),
-                  ],
-                ),
-              ],
+              ),
             ),
-          )
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      ],
     );
   }
 }

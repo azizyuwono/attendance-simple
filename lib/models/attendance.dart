@@ -1,4 +1,3 @@
-const String tableAttendances = 'tb_attendance';
 
 class AttendanceFields {
   static final List<String> values = [
